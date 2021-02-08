@@ -1,17 +1,10 @@
 package com.example.weatherapp2pokusaj;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
 import android.Manifest;
-import android.content.Context;
 import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.util.Log;
@@ -34,34 +27,27 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
 import static java.lang.Math.round;
 
 public class MainActivity extends AppCompatActivity {
 
-    LocationManager locationManager;
-    LocationListener locationListener;
-
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
-
-
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                if(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                     locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-                 }
-             }
     }
 
     EditText editText;
     Button button;
     ImageView imageView;
-    TextView country_yt, city_yt,temp_yt, longitude,latitude,humidity,sunrise,sunset,pressure,wind,country,city_nam;
+    TextView country_yt, city_yt, temp_yt, longitude, latitude, humidity, sunrise, sunset, pressure, wind, country, city_nam;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -84,21 +70,21 @@ public class MainActivity extends AppCompatActivity {
         wind = findViewById(R.id.WindSpeed);
 
 
-
-
-
-
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                findWeather();
+                findWeather(null);
             }
         });
-
     }
 
-    public void findWeather(){
-        String city = editText.getText().toString();
+    public void findWeather(String locality) {
+        String city;
+        if (locality == null) {
+            city = editText.getText().toString();
+        } else {
+            city = locality;
+        }
         String url = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "&appid=3065cdda9f2fc274807469282f32fd0a";
 
         StringRequest stringRequest = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
@@ -124,19 +110,19 @@ public class MainActivity extends AppCompatActivity {
                     JSONObject obj = jsonArray.getJSONObject(0);
                     String icon = obj.getString("icon");
 
-                    Picasso.get().load("http://openweathermap.org/img/wn/"+icon+"@2x.png").into(imageView);
+                    Picasso.get().load("http://openweathermap.org/img/wn/" + icon + "@2x.png").into(imageView);
 
                     JSONObject object3 = jsonObject.getJSONObject("coord");
                     double lat_find = object3.getDouble("lat");
-                    latitude.setText(lat_find+"");
+                    latitude.setText(lat_find + "");
 
                     JSONObject object4 = jsonObject.getJSONObject("coord");
                     double long_find = object4.getDouble("lon");
-                    longitude.setText(long_find+"");
+                    longitude.setText(long_find + "");
 
                     JSONObject object5 = jsonObject.getJSONObject("main");
                     int humidity_find = object5.getInt("humidity");
-                    humidity.setText(humidity_find+"");
+                    humidity.setText(humidity_find + "");
 
                     JSONObject object6 = jsonObject.getJSONObject("sys");
                     String sunrise_find = object6.getString("sunrise");
@@ -156,7 +142,6 @@ public class MainActivity extends AppCompatActivity {
                     wind.setText(wind_find + " hm/h");
 
 
-
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
@@ -164,7 +149,7 @@ public class MainActivity extends AppCompatActivity {
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
-                Toast.makeText(MainActivity.this,error.getLocalizedMessage(),Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, error.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
             }
         });
         RequestQueue requestQueue = Volley.newRequestQueue(MainActivity.this);
@@ -172,46 +157,49 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //      LOCATION
+    public void getLocation() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+            return;
+        }
 
-    public void getLocation(){
-        locationManager = (LocationManager) this.getSystemService((Context.LOCATION_SERVICE));
-        locationListener = new LocationListener() {
-            @Override
-            public void onLocationChanged(@NonNull Location location) {
+        Location location = getLastKnownLocation();
+        if (location != null) {
+            Geocoder geocoder = new Geocoder(getApplicationContext(), Locale.getDefault());
+            try {
+                List<Address> listAddresses = geocoder.getFromLocation(location.getLatitude(), location.getLongitude(), 1);
+                if (listAddresses != null && listAddresses.size() > 0) {
+                    String locality = listAddresses.get(0).getLocality();
+                    Log.i("INFO", locality);
 
-
-
-                Geocoder geocoder = new Geocoder(getApplicationContext(), Locale.getDefault());
-                try {
-                    List<Address> listAddresses = geocoder.getFromLocation(location.getLatitude(),location.getLongitude(),1);
-                    if(listAddresses != null && listAddresses.size() > 0){
-                        String address = "";
-
-                        if(listAddresses.get(0).getAdminArea() != null){
-                            address += listAddresses.get(0).getAdminArea() + " ";
-                        }
-
-                        if(listAddresses.get(0).getLocality() != null){
-                            address += listAddresses.get(0).getLocality() + " ";
-                        }
-
-                    Toast.makeText(getApplicationContext(),address,Toast.LENGTH_LONG).show();
-                        Log.i("INFO",address);
-
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
+                    findWeather(locality);
+                    editText.setText(locality);
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-        };
-        if(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED){
-            ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.ACCESS_FINE_LOCATION},1);
-        }else{
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+        } else {
+            Toast.makeText(MainActivity.this, "Can't get location", Toast.LENGTH_LONG).show();
         }
     }
 
-    public void clickLocation(View v){
+    private Location getLastKnownLocation() {
+        LocationManager locationManager = (LocationManager) getApplicationContext().getSystemService(LOCATION_SERVICE);
+        List<String> providers = locationManager.getProviders(true);
+        Location bestLocation = null;
+        for (String provider : providers) {
+            Location l = locationManager.getLastKnownLocation(provider);
+            if (l == null) {
+                continue;
+            }
+            if (bestLocation == null || l.getAccuracy() < bestLocation.getAccuracy()) {
+                bestLocation = l;
+            }
+        }
+        return bestLocation;
+    }
+
+    public void clickLocation(View v) {
         getLocation();
     }
 }
