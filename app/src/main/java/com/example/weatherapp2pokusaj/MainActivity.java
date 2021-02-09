@@ -5,6 +5,7 @@ import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.util.Log;
@@ -38,16 +39,13 @@ import static java.lang.Math.round;
 
 public class MainActivity extends AppCompatActivity {
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-    }
-
     EditText editText;
     Button button;
     ImageView imageView;
     TextView country_yt, city_yt, temp_yt, longitude, latitude, humidity, sunrise, sunset, pressure, wind, country, city_nam;
+
+    LocationManager locationManager;
+    Location location;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,6 +74,24 @@ public class MainActivity extends AppCompatActivity {
                 findWeather(null);
             }
         });
+
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+        } else {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000,
+                    100, locationListener);
+        }
+
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == 1 && grantResults.length > 0
+                && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 100, locationListener);
+        }
     }
 
     public void findWeather(String locality) {
@@ -156,6 +172,16 @@ public class MainActivity extends AppCompatActivity {
         requestQueue.add(stringRequest);
     }
 
+    private final LocationListener locationListener = new LocationListener() {
+        @Override
+        public void onLocationChanged(final Location loc) {
+            if (loc != null) {
+                location = loc;
+            }
+        }
+    };
+
+
     //      LOCATION
     public void getLocation() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -163,23 +189,26 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        Location location = getLastKnownLocation();
         if (location != null) {
-            Geocoder geocoder = new Geocoder(getApplicationContext(), Locale.getDefault());
-            try {
-                List<Address> listAddresses = geocoder.getFromLocation(location.getLatitude(), location.getLongitude(), 1);
-                if (listAddresses != null && listAddresses.size() > 0) {
-                    String locality = listAddresses.get(0).getLocality();
-                    Log.i("INFO", locality);
-
-                    findWeather(locality);
-                    editText.setText(locality);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            processLocationData(location);
         } else {
-            Toast.makeText(MainActivity.this, "Can't get location", Toast.LENGTH_LONG).show();
+            processLocationData(getLastKnownLocation());
+        }
+    }
+
+    private void processLocationData(Location loc){
+        Geocoder geocoder = new Geocoder(getApplicationContext(), Locale.getDefault());
+        try {
+            List<Address> listAddresses = geocoder.getFromLocation(loc.getLatitude(), loc.getLongitude(), 1);
+            if (listAddresses != null && listAddresses.size() > 0) {
+                String locality = listAddresses.get(0).getLocality();
+                Log.i("INFO", locality);
+
+                findWeather(locality);
+                editText.setText(locality);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -202,4 +231,5 @@ public class MainActivity extends AppCompatActivity {
     public void clickLocation(View v) {
         getLocation();
     }
+
 }
